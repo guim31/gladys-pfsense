@@ -1,177 +1,765 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "pfSense",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "pfSense firewalls: presence of your devices, health, gateways and outages, parental control.",
+    "fr": "Pare-feu pfSense : présence de vos appareils, santé, passerelles et coupures, contrôle parental.",
+    "de": "pfSense-Firewalls: Anwesenheit deiner Geräte, Zustand, Gateways und Ausfälle, Kindersicherung.",
+    "es": "Cortafuegos pfSense: presencia de sus dispositivos, estado, puertas de enlace y cortes."
   },
   "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
+  "docker_image": "ghcr.io/guim31/gladys-pfsense:1.0.0",
   "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "cover_image": "https://raw.githubusercontent.com/guim31/gladys-pfsense/main/cover.png",
+  "categories": ["network"],
+  "transports": ["local"],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "Your pfSense firewall",
+        "fr": "Votre pare-feu pfSense",
+        "de": "Deine pfSense-Firewall",
+        "es": "Su cortafuegos pfSense"
+      },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "pfSense CE or Plus with the free REST API package (pfSense-pkg-RESTAPI, API v2). Create an API key for a dedicated user with read-only privileges.",
+        "fr": "pfSense CE ou Plus avec le paquet libre REST API (pfSense-pkg-RESTAPI, API v2). Créez une clé d'API pour un utilisateur dédié aux privilèges de lecture seule.",
+        "de": "pfSense CE oder Plus mit dem freien Paket REST API (pfSense-pkg-RESTAPI, API v2). Erstelle einen API-Schlüssel für einen eigenen Benutzer mit reinen Leserechten.",
+        "es": "pfSense CE o Plus con el paquete libre REST API (pfSense-pkg-RESTAPI, API v2). Cree una clave de API para un usuario dedicado con privilegios de solo lectura."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://pfrest.org/INSTALL_AND_CONFIG/",
+          "label": {
+            "en": "Install the REST API package",
+            "fr": "Installer le paquet REST API",
+            "de": "Paket REST API installieren",
+            "es": "Instalar el paquete REST API"
+          }
+        },
+        {
+          "url": "https://pfrest.org/AUTHENTICATION_AND_AUTHORIZATION/",
+          "label": {
+            "en": "API keys and privileges",
+            "fr": "Clés d'API et privilèges",
+            "de": "API-Schlüssel und Rechte",
+            "es": "Claves de API y privilegios"
+          }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
-      "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
+      "key": "url",
+      "type": "string",
+      "label": {
+        "en": "Firewall address",
+        "fr": "Adresse du pare-feu",
+        "de": "Adresse der Firewall",
+        "es": "Dirección del cortafuegos"
       },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
+      "description": {
+        "en": "The address of the webConfigurator, with :port if it does not use 443. HTTPS when no scheme is given.",
+        "fr": "L'adresse du webConfigurator, avec :port s'il n'utilise pas le 443. HTTPS sans schéma précisé.",
+        "de": "Die Adresse des webConfigurators, mit :Port, falls er nicht 443 nutzt. HTTPS ohne Angabe eines Schemas.",
+        "es": "La dirección del webConfigurator, con :puerto si no usa el 443. HTTPS si no se indica esquema."
+      },
+      "placeholder": {
+        "en": "e.g. https://192.168.1.1",
+        "fr": "ex. https://192.168.1.1",
+        "de": "z. B. https://192.168.1.1",
+        "es": "p. ej. https://192.168.1.1"
+      },
       "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
+      "default": ""
     },
     {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
-      "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
+      "key": "api_key",
+      "type": "secret",
+      "label": {
+        "en": "API key",
+        "fr": "Clé d'API",
+        "de": "API-Schlüssel",
+        "es": "Clave de API"
       },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
-      "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
+      "description": {
+        "en": "Created in System > REST API > Keys, while logged in as the user Gladys reads with.",
+        "fr": "Créée dans System > REST API > Keys, connecté avec l'utilisateur avec lequel Gladys lit.",
+        "de": "Erstellt unter System > REST API > Keys, angemeldet als der Benutzer, mit dem Gladys liest.",
+        "es": "Creada en System > REST API > Keys, con la sesión del usuario con el que Gladys lee."
+      },
+      "required": false
     },
     {
-      "key": "unit",
-      "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
+      "key": "allow_self_signed",
+      "type": "boolean",
+      "label": {
+        "en": "Accept a self-signed certificate",
+        "fr": "Accepter un certificat auto-signé",
+        "de": "Selbstsigniertes Zertifikat akzeptieren",
+        "es": "Aceptar un certificado autofirmado"
+      },
+      "description": {
+        "en": "pfSense serves its webConfigurator with a self-signed certificate unless you installed another one. Tick only for your own firewall.",
+        "fr": "pfSense sert son webConfigurator avec un certificat auto-signé si vous n'en avez pas installé d'autre. À cocher pour votre propre pare-feu seulement.",
+        "de": "pfSense liefert seinen webConfigurator mit einem selbstsignierten Zertifikat aus, wenn du kein anderes installiert hast. Nur für deine eigene Firewall aktivieren.",
+        "es": "pfSense sirve su webConfigurator con un certificado autofirmado si no ha instalado otro. Márquelo solo para su propio cortafuegos."
+      },
       "required": false,
-      "default": "celsius",
+      "default": false
+    },
+    {
+      "key": "poll_interval",
+      "type": "select",
+      "label": {
+        "en": "Refresh interval",
+        "fr": "Intervalle de rafraîchissement",
+        "de": "Aktualisierungsintervall",
+        "es": "Intervalo de actualización"
+      },
+      "description": {
+        "en": "How often the firewall is read. The rates are averages over this interval.",
+        "fr": "Fréquence de lecture du pare-feu. Les débits sont des moyennes sur cet intervalle.",
+        "de": "Wie oft die Firewall gelesen wird. Die Raten sind Mittelwerte über dieses Intervall.",
+        "es": "Con qué frecuencia se lee el cortafuegos. Los caudales son medias en este intervalo."
+      },
+      "required": false,
+      "default": "30",
       "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
+        {
+          "value": "10",
+          "label": {
+            "en": "10 seconds",
+            "fr": "10 secondes",
+            "de": "10 Sekunden",
+            "es": "10 segundos"
+          }
+        },
+        {
+          "value": "15",
+          "label": {
+            "en": "15 seconds",
+            "fr": "15 secondes",
+            "de": "15 Sekunden",
+            "es": "15 segundos"
+          }
+        },
+        {
+          "value": "30",
+          "label": {
+            "en": "30 seconds",
+            "fr": "30 secondes",
+            "de": "30 Sekunden",
+            "es": "30 segundos"
+          }
+        },
+        {
+          "value": "60",
+          "label": {
+            "en": "1 minute",
+            "fr": "1 minute",
+            "de": "1 Minute",
+            "es": "1 minuto"
+          }
+        }
       ]
     },
     {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
+      "key": "gateways",
+      "type": "string",
+      "label": {
+        "en": "Gateways to follow",
+        "fr": "Passerelles à suivre",
+        "de": "Zu verfolgende Gateways",
+        "es": "Puertas de enlace que seguir"
+      },
       "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
+        "en": "Gateway names of pfSense (System > Routing), separated by commas, up to four. Empty: every monitored gateway.",
+        "fr": "Noms de passerelles de pfSense (System > Routing), séparés par des virgules, quatre au plus. Vide : toutes les passerelles surveillées.",
+        "de": "Gateway-Namen von pfSense (System > Routing), durch Kommas getrennt, höchstens vier. Leer: alle überwachten Gateways.",
+        "es": "Nombres de puertas de enlace de pfSense (System > Routing), separados por comas, cuatro como máximo. Vacío: todas las vigiladas."
+      },
+      "placeholder": {
+        "en": "e.g. WAN_DHCP, WAN2_DHCP",
+        "fr": "ex. WAN_DHCP, WAN2_DHCP",
+        "de": "z. B. WAN_DHCP, WAN2_DHCP",
+        "es": "p. ej. WAN_DHCP, WAN2_DHCP"
       },
       "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "default": ""
+    },
+    {
+      "key": "presence_section",
+      "type": "section",
+      "label": {
+        "en": "Presence",
+        "fr": "Présence",
+        "de": "Anwesenheit",
+        "es": "Presencia"
+      },
+      "description": {
+        "en": "Add the devices to follow from the Discovery tab: each one becomes a presence sensor, present while pfSense sees it in its ARP table.",
+        "fr": "Ajoutez les appareils à suivre depuis l'onglet Découverte : chacun devient un capteur de présence, présent tant que pfSense le voit dans sa table ARP.",
+        "de": "Füge die zu verfolgenden Geräte im Tab „Entdecken“ hinzu: Jedes wird ein Anwesenheitssensor, anwesend, solange pfSense es in seiner ARP-Tabelle sieht.",
+        "es": "Añada los dispositivos que quiera seguir desde la pestaña Descubrir: cada uno se convierte en un sensor de presencia, presente mientras pfSense lo ve en su tabla ARP."
+      }
+    },
+    {
+      "key": "away_delay",
+      "type": "number",
+      "label": {
+        "en": "Departure delay (minutes)",
+        "fr": "Délai de départ (minutes)",
+        "de": "Abwesenheitsverzögerung (Minuten)",
+        "es": "Retraso de salida (minutos)"
+      },
+      "description": {
+        "en": "A device no longer seen counts as away only after this delay. pfSense already keeps an ARP entry up to 20 minutes.",
+        "fr": "Un appareil qui n'est plus vu ne compte comme absent qu'après ce délai. pfSense garde déjà une entrée ARP jusqu'à 20 minutes.",
+        "de": "Ein nicht mehr gesehenes Gerät gilt erst nach dieser Zeit als abwesend. pfSense behält einen ARP-Eintrag bereits bis zu 20 Minuten.",
+        "es": "Un dispositivo que ya no se ve cuenta como ausente solo tras este retraso. pfSense ya conserva una entrada ARP hasta 20 minutos."
+      },
+      "required": false,
+      "default": 5,
+      "min": 0,
+      "max": 60
+    },
+    {
+      "key": "commands_section",
+      "type": "section",
+      "label": {
+        "en": "Firewall rules and commands",
+        "fr": "Règles de pare-feu et commandes",
+        "de": "Firewall-Regeln und Befehle",
+        "es": "Reglas de cortafuegos y órdenes"
+      },
+      "description": {
+        "en": "Read only by default. Commands enable or disable the rules listed below, or reboot the firewall, from a scene or a widget. Nothing else is ever changed.",
+        "fr": "Lecture seule par défaut. Les commandes activent ou désactivent les règles listées ci-dessous, ou redémarrent le pare-feu, depuis une scène ou un widget. Rien d'autre n'est jamais modifié.",
+        "de": "Standardmäßig nur lesend. Befehle aktivieren oder deaktivieren die unten aufgeführten Regeln oder starten die Firewall neu, aus einer Szene oder einem Widget. Sonst wird nie etwas geändert.",
+        "es": "Solo lectura por defecto. Las órdenes activan o desactivan las reglas indicadas abajo, o reinician el cortafuegos, desde una escena o un widget. Nunca se cambia nada más."
+      }
+    },
+    {
+      "key": "firewall_rules",
+      "type": "string",
+      "label": {
+        "en": "Firewall rules to follow",
+        "fr": "Règles de pare-feu à suivre",
+        "de": "Zu verfolgende Firewall-Regeln",
+        "es": "Reglas de cortafuegos que seguir"
+      },
+      "description": {
+        "en": "The descriptions of the rules, separated by commas (up to ten). \"List the firewall rules\" shows them.",
+        "fr": "Les descriptions des règles, séparées par des virgules (dix au plus). « Lister les règles de pare-feu » les affiche.",
+        "de": "Die Beschreibungen der Regeln, durch Kommas getrennt (höchstens zehn). „Firewall-Regeln auflisten“ zeigt sie an.",
+        "es": "Las descripciones de las reglas, separadas por comas (diez como máximo). «Listar las reglas de cortafuegos» las muestra."
+      },
+      "placeholder": {
+        "en": "e.g. Block kids tablet",
+        "fr": "ex. Bloquer tablette enfants",
+        "de": "z. B. Kinder-Tablet sperren",
+        "es": "p. ej. Bloquear tableta niños"
+      },
+      "required": false,
+      "default": ""
+    },
+    {
+      "key": "allow_commands",
+      "type": "boolean",
+      "label": {
+        "en": "Allow commands",
+        "fr": "Autoriser les commandes",
+        "de": "Befehle erlauben",
+        "es": "Permitir órdenes"
+      },
+      "description": {
+        "en": "Lets scenes and widgets enable or disable the rules above and reboot the firewall. The user of the key needs the matching privileges.",
+        "fr": "Permet aux scènes et aux widgets d'activer ou de désactiver les règles ci-dessus et de redémarrer le pare-feu. L'utilisateur de la clé doit avoir les privilèges correspondants.",
+        "de": "Erlaubt Szenen und Widgets, die Regeln oben zu aktivieren oder zu deaktivieren und die Firewall neu zu starten. Der Benutzer des Schlüssels braucht die passenden Rechte.",
+        "es": "Permite a las escenas y widgets activar o desactivar las reglas de arriba y reiniciar el cortafuegos. El usuario de la clave necesita los privilegios correspondientes."
+      },
+      "required": false,
+      "default": false
+    },
+    {
+      "key": "language",
+      "type": "select",
+      "label": {
+        "en": "Language of the names",
+        "fr": "Langue des noms",
+        "de": "Sprache der Namen",
+        "es": "Idioma de los nombres"
+      },
+      "description": {
+        "en": "Language of the device and feature names, set when a device is added.",
+        "fr": "Langue des noms d'appareils et de fonctionnalités, fixés à l'ajout d'un appareil.",
+        "de": "Sprache der Geräte- und Funktionsnamen, beim Hinzufügen eines Geräts festgelegt.",
+        "es": "Idioma de los nombres de dispositivos y funciones, fijados al añadir un dispositivo."
+      },
+      "required": false,
+      "default": "fr",
+      "options": [
+        {
+          "value": "en",
+          "label": {
+            "en": "English",
+            "fr": "Anglais",
+            "de": "Englisch",
+            "es": "Inglés"
+          }
+        },
+        {
+          "value": "fr",
+          "label": {
+            "en": "French",
+            "fr": "Français",
+            "de": "Französisch",
+            "es": "Francés"
+          }
+        },
+        {
+          "value": "de",
+          "label": {
+            "en": "German",
+            "fr": "Allemand",
+            "de": "Deutsch",
+            "es": "Alemán"
+          }
+        },
+        {
+          "value": "es",
+          "label": {
+            "en": "Spanish",
+            "fr": "Espagnol",
+            "de": "Spanisch",
+            "es": "Español"
+          }
+        }
+      ]
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
-      "timeout_seconds": 30
+      "key": "test_connection",
+      "label": {
+        "en": "Test the connection",
+        "fr": "Tester la connexion",
+        "de": "Verbindung testen",
+        "es": "Probar la conexión"
+      },
+      "description": {
+        "en": "Reads the firewall and reports what it finds, and what the key may not read.",
+        "fr": "Lit le pare-feu et indique ce qu’il trouve, et ce que la clé ne peut pas lire.",
+        "de": "Liest die Firewall und meldet, was es findet und was der Schlüssel nicht lesen darf.",
+        "es": "Lee el cortafuegos e indica lo que encuentra y lo que la clave no puede leer."
+      },
+      "timeout_seconds": 60
     },
     {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ]
+      "key": "list_firewall_rules",
+      "label": {
+        "en": "List the firewall rules",
+        "fr": "Lister les règles de pare-feu",
+        "de": "Firewall-Regeln auflisten",
+        "es": "Listar las reglas de cortafuegos"
+      },
+      "description": {
+        "en": "Shows the rules that have a description, to copy into \"Firewall rules to follow\".",
+        "fr": "Affiche les règles qui ont une description, à copier dans « Règles de pare-feu à suivre ».",
+        "de": "Zeigt die Regeln mit Beschreibung, zum Kopieren in „Zu verfolgende Firewall-Regeln“.",
+        "es": "Muestra las reglas con descripción, para copiar en «Reglas de cortafuegos que seguir»."
+      },
+      "timeout_seconds": 30
     }
   ],
   "scene_triggers": [
     {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
+      "key": "gateway_down",
+      "label": {
+        "en": "Gateway down",
+        "fr": "Passerelle coupée",
+        "de": "Gateway ausgefallen",
+        "es": "Puerta de enlace cortada"
+      },
       "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
+        "en": "pfSense marks a gateway down: no answer, or too much loss or latency (dpinger).",
+        "fr": "pfSense déclare une passerelle coupée : pas de réponse, ou trop de perte ou de latence (dpinger).",
+        "de": "pfSense meldet ein Gateway als ausgefallen: keine Antwort oder zu viel Verlust oder Latenz (dpinger).",
+        "es": "pfSense marca una puerta de enlace como cortada: sin respuesta, o demasiada pérdida o latencia (dpinger)."
       },
       "fields": [
         {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
-        },
-        {
-          "key": "target",
-          "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
-          "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
-          ]
+          "key": "gateway",
+          "type": "string",
+          "label": {
+            "en": "Gateway (empty: any)",
+            "fr": "Passerelle (vide : toutes)",
+            "de": "Gateway (leer: beliebig)",
+            "es": "Puerta de enlace (vacío: cualquiera)"
+          },
+          "placeholder": {
+            "en": "e.g. WAN_DHCP",
+            "fr": "ex. WAN_DHCP",
+            "de": "z. B. WAN_DHCP",
+            "es": "p. ej. WAN_DHCP"
+          }
         }
       ],
       "variables": [
         {
-          "key": "target",
+          "key": "gateway",
           "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
+          "label": {
+            "en": "Gateway",
+            "fr": "Passerelle",
+            "de": "Gateway",
+            "es": "Puerta de enlace"
+          }
+        },
+        {
+          "key": "reason",
+          "type": "string",
+          "label": {
+            "en": "Reason (pfSense substatus)",
+            "fr": "Raison (sous-état pfSense)",
+            "de": "Grund (Unterstatus von pfSense)",
+            "es": "Motivo (subestado de pfSense)"
+          }
+        }
+      ]
+    },
+    {
+      "key": "gateway_up",
+      "label": {
+        "en": "Gateway restored",
+        "fr": "Passerelle rétablie",
+        "de": "Gateway wiederhergestellt",
+        "es": "Puerta de enlace restablecida"
+      },
+      "description": {
+        "en": "A gateway that was down is online again, with the length of the outage.",
+        "fr": "Une passerelle coupée est de nouveau en ligne, avec la durée de la coupure.",
+        "de": "Ein ausgefallenes Gateway ist wieder online, mit der Dauer des Ausfalls.",
+        "es": "Una puerta de enlace cortada vuelve a estar en línea, con la duración del corte."
+      },
+      "fields": [
+        {
+          "key": "gateway",
+          "type": "string",
+          "label": {
+            "en": "Gateway (empty: any)",
+            "fr": "Passerelle (vide : toutes)",
+            "de": "Gateway (leer: beliebig)",
+            "es": "Puerta de enlace (vacío: cualquiera)"
+          },
+          "placeholder": {
+            "en": "e.g. WAN_DHCP",
+            "fr": "ex. WAN_DHCP",
+            "de": "z. B. WAN_DHCP",
+            "es": "p. ej. WAN_DHCP"
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "gateway",
+          "type": "string",
+          "label": {
+            "en": "Gateway",
+            "fr": "Passerelle",
+            "de": "Gateway",
+            "es": "Puerta de enlace"
+          }
+        },
+        {
+          "key": "down_minutes",
+          "type": "number",
+          "label": {
+            "en": "Outage (minutes)",
+            "fr": "Coupure (minutes)",
+            "de": "Ausfall (Minuten)",
+            "es": "Corte (minutos)"
+          }
+        }
+      ]
+    },
+    {
+      "key": "unknown_device_connected",
+      "label": {
+        "en": "Unknown device connected",
+        "fr": "Appareil inconnu connecté",
+        "de": "Unbekanntes Gerät verbunden",
+        "es": "Dispositivo desconocido conectado"
+      },
+      "description": {
+        "en": "A MAC address never seen before got a DHCP lease from pfSense.",
+        "fr": "Une adresse MAC jamais vue a obtenu un bail DHCP de pfSense.",
+        "de": "Eine noch nie gesehene MAC-Adresse hat ein DHCP-Lease von pfSense erhalten.",
+        "es": "Una dirección MAC nunca vista ha obtenido una concesión DHCP de pfSense."
+      },
+      "fields": [
+        {
+          "key": "interface",
+          "type": "string",
+          "label": {
+            "en": "Interface (empty: any)",
+            "fr": "Interface (vide : toutes)",
+            "de": "Schnittstelle (leer: beliebig)",
+            "es": "Interfaz (vacío: cualquiera)"
+          },
+          "placeholder": {
+            "en": "e.g. GUESTS",
+            "fr": "ex. INVITES",
+            "de": "z. B. GAESTE",
+            "es": "p. ej. INVITADOS"
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "mac",
+          "type": "string",
+          "label": {
+            "en": "MAC address",
+            "fr": "Adresse MAC",
+            "de": "MAC-Adresse",
+            "es": "Dirección MAC"
+          }
+        },
+        {
+          "key": "ip",
+          "type": "string",
+          "label": {
+            "en": "IP address",
+            "fr": "Adresse IP",
+            "de": "IP-Adresse",
+            "es": "Dirección IP"
+          }
+        },
+        {
+          "key": "host_name",
+          "type": "string",
+          "label": {
+            "en": "Host name",
+            "fr": "Nom d'hôte",
+            "de": "Hostname",
+            "es": "Nombre de host"
+          }
+        },
+        {
+          "key": "interface",
+          "type": "string",
+          "label": {
+            "en": "Interface",
+            "fr": "Interface",
+            "de": "Schnittstelle",
+            "es": "Interfaz"
+          }
         }
       ]
     }
   ],
   "scene_actions": [
     {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
+      "key": "enable_firewall_rule",
+      "label": {
+        "en": "Enable a firewall rule",
+        "fr": "Activer une règle de pare-feu",
+        "de": "Firewall-Regel aktivieren",
+        "es": "Activar una regla de cortafuegos"
       },
-      "timeout_seconds": 15,
+      "description": {
+        "en": "Enables the pfSense rules with this description and applies the change. Needs \"Allow commands\".",
+        "fr": "Active les règles pfSense de cette description et applique le changement. Nécessite « Autoriser les commandes ».",
+        "de": "Aktiviert die pfSense-Regeln mit dieser Beschreibung und wendet die Änderung an. Erfordert „Befehle erlauben“.",
+        "es": "Activa las reglas de pfSense con esta descripción y aplica el cambio. Requiere «Permitir órdenes»."
+      },
+      "timeout_seconds": 30,
       "fields": [
         {
-          "key": "device",
+          "key": "rule",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
+          "label": {
+            "en": "Firewall rule",
+            "fr": "Règle de pare-feu",
+            "de": "Firewall-Regel",
+            "es": "Regla de cortafuegos"
+          },
+          "description": {
+            "en": "A rule followed in the configuration (a \"Rule …\" device).",
+            "fr": "Une règle suivie dans la configuration (un appareil « Règle … »).",
+            "de": "Eine in der Konfiguration verfolgte Regel (ein Gerät „Regel …“).",
+            "es": "Una regla seguida en la configuración (un dispositivo «Regla …»)."
+          },
           "required": true
         }
       ],
       "outputs": [
         {
-          "key": "signalled",
+          "key": "active",
           "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
+          "label": {
+            "en": "Rule enabled",
+            "fr": "Règle activée",
+            "de": "Regel aktiviert",
+            "es": "Regla activada"
+          }
         }
       ]
+    },
+    {
+      "key": "disable_firewall_rule",
+      "label": {
+        "en": "Disable a firewall rule",
+        "fr": "Désactiver une règle de pare-feu",
+        "de": "Firewall-Regel deaktivieren",
+        "es": "Desactivar una regla de cortafuegos"
+      },
+      "description": {
+        "en": "Disables the pfSense rules with this description and applies the change. Needs \"Allow commands\".",
+        "fr": "Désactive les règles pfSense de cette description et applique le changement. Nécessite « Autoriser les commandes ».",
+        "de": "Deaktiviert die pfSense-Regeln mit dieser Beschreibung und wendet die Änderung an. Erfordert „Befehle erlauben“.",
+        "es": "Desactiva las reglas de pfSense con esta descripción y aplica el cambio. Requiere «Permitir órdenes»."
+      },
+      "timeout_seconds": 30,
+      "fields": [
+        {
+          "key": "rule",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Firewall rule",
+            "fr": "Règle de pare-feu",
+            "de": "Firewall-Regel",
+            "es": "Regla de cortafuegos"
+          },
+          "description": {
+            "en": "A rule followed in the configuration (a \"Rule …\" device).",
+            "fr": "Une règle suivie dans la configuration (un appareil « Règle … »).",
+            "de": "Eine in der Konfiguration verfolgte Regel (ein Gerät „Regel …“).",
+            "es": "Una regla seguida en la configuración (un dispositivo «Regla …»)."
+          },
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "key": "active",
+          "type": "boolean",
+          "label": {
+            "en": "Rule enabled",
+            "fr": "Règle activée",
+            "de": "Regel aktiviert",
+            "es": "Regla activada"
+          }
+        }
+      ]
+    },
+    {
+      "key": "reboot_firewall",
+      "label": {
+        "en": "Reboot the pfSense firewall",
+        "fr": "Redémarrer le pare-feu pfSense",
+        "de": "pfSense-Firewall neu starten",
+        "es": "Reiniciar el cortafuegos pfSense"
+      },
+      "description": {
+        "en": "Restarts pfSense: the network and the internet are cut for a few minutes. Needs \"Allow commands\".",
+        "fr": "Redémarre pfSense : le réseau et internet sont coupés quelques minutes. Nécessite « Autoriser les commandes ».",
+        "de": "Startet pfSense neu: Netzwerk und Internet sind einige Minuten unterbrochen. Erfordert „Befehle erlauben“.",
+        "es": "Reinicia pfSense: la red e internet se cortan unos minutos. Requiere «Permitir órdenes»."
+      },
+      "timeout_seconds": 30
     }
   ],
   "widgets": [
     {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
+      "key": "firewall",
+      "label": {
+        "en": "pfSense firewall",
+        "fr": "Pare-feu pfSense",
+        "de": "pfSense-Firewall",
+        "es": "Cortafuegos pfSense"
       },
-      "icon": "activity",
-      "action_timeout_seconds": 15
+      "description": {
+        "en": "CPU, memory, temperature, WAN rates, gateways with latency and loss, version.",
+        "fr": "Processeur, mémoire, température, débits WAN, passerelles, latence et perte, version.",
+        "de": "CPU, Speicher, Temperatur, WAN-Raten, Gateways mit Latenz und Verlust, Version.",
+        "es": "Procesador, memoria, temperatura, caudal WAN, puertas de enlace, latencia, versión."
+      },
+      "icon": "shield",
+      "action_timeout_seconds": 30
+    },
+    {
+      "key": "presence",
+      "label": {
+        "en": "Devices at home",
+        "fr": "Appareils présents",
+        "de": "Anwesende Geräte",
+        "es": "Dispositivos presentes"
+      },
+      "description": {
+        "en": "The devices followed as presence sensors, present first.",
+        "fr": "Les appareils suivis comme capteurs de présence, présents d’abord.",
+        "de": "Die als Anwesenheitssensoren verfolgten Geräte, anwesende zuerst.",
+        "es": "Los dispositivos seguidos como sensores de presencia, presentes primero."
+      },
+      "icon": "users",
+      "settings": [
+        {
+          "key": "show",
+          "type": "select",
+          "label": {
+            "en": "Show",
+            "fr": "Afficher",
+            "de": "Anzeigen",
+            "es": "Mostrar"
+          },
+          "required": false,
+          "default": "all",
+          "options": [
+            {
+              "value": "all",
+              "label": {
+                "en": "Every followed device",
+                "fr": "Tous les appareils suivis",
+                "de": "Alle verfolgten Geräte",
+                "es": "Todos los dispositivos seguidos"
+              }
+            },
+            {
+              "value": "present",
+              "label": {
+                "en": "Present devices only",
+                "fr": "Les présents seulement",
+                "de": "Nur anwesende Geräte",
+                "es": "Solo los presentes"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "firewall_rules",
+      "label": {
+        "en": "Firewall rules",
+        "fr": "Règles de pare-feu",
+        "de": "Firewall-Regeln",
+        "es": "Reglas de cortafuegos"
+      },
+      "description": {
+        "en": "The followed rules, and a button to enable or disable each one (parental control).",
+        "fr": "Les règles suivies, et un bouton pour activer ou désactiver chacune (contrôle parental).",
+        "de": "Die verfolgten Regeln und eine Taste, um jede zu aktivieren oder deaktivieren.",
+        "es": "Las reglas seguidas y un botón para activar o desactivar cada una (control parental)."
+      },
+      "icon": "shield-off",
+      "action_timeout_seconds": 30
     }
   ]
 }

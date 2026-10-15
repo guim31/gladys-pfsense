@@ -30,6 +30,34 @@ Gladys before reporting a problem.
 
 In scope: the code of this repository and the Docker image it publishes.
 
+What the integration handles:
+
+- **Secrets**: the API key of the pfSense REST API package is a `secret` field
+  of the Gladys configuration. The integration reads it from Gladys at startup,
+  keeps it in memory, sends it only to the firewall address typed in the
+  configuration, in the `X-API-Key` header (never in a URL), and never writes
+  it to `/data` nor to the logs. A key created by a user holding only the GET
+  privileges of the endpoints read is enough unless the commands are allowed.
+- **Stored in `/data`**: `pfsense-state.json`, the MAC addresses already seen
+  on the network with the date they were first seen (for the "Unknown device
+  connected" trigger, 5,000 at most). Nothing else.
+- **Network**: requests go only to the firewall address of the configuration,
+  on the local network, over HTTPS (or HTTP if the user types an `http://`
+  address; the API key then travels unencrypted on the LAN, and the
+  connection test says so). Certificates are verified unless the user ticks
+  "Accept a self-signed certificate". A refused key is tried again only every
+  5 minutes, so the login protection of pfSense does not lock Gladys out. The
+  integration opens no port and calls no cloud service; reading the package
+  list makes pfSense query its own package servers (with a cache), at most
+  once an hour.
+- **Changes to the firewall**: none unless "Allow commands" is ticked. Then
+  only the `disabled` flag of the firewall rules whose description the user
+  listed (then the filter is applied), and a reboot, from a scene action or a
+  widget button with confirmation. Nothing is exposed as a switch.
+
 Out of scope: Gladys Assistant itself (see its
 [security policy](https://github.com/GladysAssistant/Gladys/security/policy)),
-and the third-party services and devices the integration talks to.
+pfSense and the REST API package themselves (see
+[Netgate's security page](https://www.netgate.com/security) and the
+[package's policy](https://github.com/pfrest/pfSense-pkg-RESTAPI/security)),
+and the other devices and services of your network.

@@ -1,61 +1,245 @@
-# Demo Devices Template
+# pfSense
 
-This is the user documentation of the integration. Gladys re-hosts this file
-and shows a permanent **Documentation** link to it in the Configuration screen
-(in the user's language, with English as the fallback) — it is when
-configuring that the user needs it most. Keep the short onboarding hints in
-the `section` blocks of the manifest `config_schema`; put the long
-step-by-step (screenshots, troubleshooting…) here.
+Follow your [pfSense](https://www.pfsense.org) firewall (CE or Plus) from
+Gladys, over your local network: know who is home from the devices pfSense
+sees, watch the health of the firewall and the state of your internet
+gateways, be told when a gateway drops or when an unknown device joins, and,
+if you allow it, cut the internet of the kids' tablet from a scene.
 
-## What you get
+> **Developed without the hardware: feedback welcome.** This integration was
+> built and tested against the documented answers of the pfSense REST API
+> package, not against a real firewall. If something does not work as
+> described, please say so on the
+> [Gladys forum](https://community.gladysassistant.com) or in the
+> [issues](https://github.com/guim31/gladys-pfsense/issues).
 
-Six demo devices show up after installation: a weather station (real data
-from Open-Meteo), a switch, a dimmable light, a smart plug with power
-metering, a motion sensor and a camera.
+This integration is not affiliated with Netgate. pfSense is a trademark of
+Electric Sheep Fencing LLC (Netgate).
 
-## Configuration
+## What you need
 
-1. Open the **Configuration** tab of the integration.
-2. Set the **latitude** and **longitude** the demo weather station should
-   observe (they default to Paris), and pick your temperature unit.
-   The **refresh interval** sets how often the weather station and the
-   plug's power are read: every 5 minutes by default, every minute at most.
-3. Save: the devices appear in the **Discovery** tab, ready to be added.
+- Gladys Assistant 5.1.0 or later.
+- A pfSense CE or pfSense Plus firewall reachable from Gladys.
+- The free **REST API package** (`pfSense-pkg-RESTAPI`, API v2, by Jared
+  Hendrickson) installed on it. pfSense has no REST API of its own: this
+  package adds one. It is not in the package manager of pfSense: it is
+  installed from the command line (see below).
+- An API key, ideally for a dedicated user with read-only privileges.
 
-The **Prefer the local connection** toggle drives the demo plug: it reports
-the channel it actually uses as a badge (local or cloud), with an orange dot
-when it runs degraded (local refused, cloud fallback).
+## Set up
 
-## Actions
+### Install the REST API package
 
-- **Test the weather provider** — performs a live request to Open-Meteo and
-  shows the current temperature and humidity under the button.
-- **Identify a device** — pick one of your devices in the list and it will
-  signal itself (the demo light "blinks" in the logs).
+In a shell on pfSense (**Diagnostics** → **Command Prompt**, or SSH), run the
+command given in the
+[package documentation](https://pfrest.org/INSTALL_AND_CONFIG/) for your
+version, e.g. on pfSense CE:
 
-## Scenes
+```
+pkg-static add https://github.com/pfrest/pfSense-pkg-RESTAPI/releases/latest/download/pfSense-2.8.1-pkg-RESTAPI.pkg
+```
 
-The integration adds its own cards to the scene editor (Gladys 5.1 or
-later), under the **Integrations** category:
+Then open **System** → **REST API** and check that the API is enabled and
+that **API Key** is among the authentication methods.
 
-- **Motion detected** (trigger) — starts the scene when a demo motion sensor
-  sees something move. Optionally pick the sensor and what moved (person,
-  animal); left empty, any detection matches. The following actions can
-  read what moved with `{{triggerEvent.data.target}}`.
-- **Identify a device** (action) — makes the chosen device signal itself.
-  It returns whether the device could signal itself, so the following
-  actions can depend on it.
+pfSense removes the packages that are not its own when it updates itself:
+**install the package again after each pfSense update**, or Gladys loses the
+firewall.
+
+### A read-only user and its API key
+
+Create a user for Gladys rather than using `admin` (**System** → **User
+Manager** → **Add**). Give it only the privileges of the REST API endpoints
+the integration reads, method GET:
+
+- `/api/v2/status/system`, `/api/v2/status/gateways`,
+  `/api/v2/status/interfaces`: health, gateways, rates;
+- `/api/v2/status/dhcp_server/leases`, `/api/v2/diagnostics/arp_table`:
+  presence and the "Unknown device connected" trigger;
+- `/api/v2/system/version`, `/api/v2/system/hostname`,
+  `/api/v2/routing/gateways`, `/api/v2/system/packages`: version, name,
+  interface of each gateway, package updates;
+- `/api/v2/firewall/rules`: the state of the followed rules.
+
+A privilege missing is not an error: the matching measures are skipped, and
+**Test the connection** lists what the key may not read. The commands need two
+more: `/api/v2/firewall/rule` method PATCH and `/api/v2/diagnostics/reboot`
+method POST.
+
+Then log in to pfSense **as this user**, open **System** → **REST API** →
+**Keys** → **Add**, and copy the key: pfSense shows it only once. A key has the
+privileges of the user who created it.
+
+### The configuration
+
+Open **Integrations** → **pfSense** → **Configuration**:
+
+- **Firewall address**: the address of the webConfigurator, e.g.
+  `https://192.168.1.1`, with `:port` if it does not use 443. Without a
+  scheme, HTTPS is used.
+- **API key**: the key created above.
+- **Accept a self-signed certificate**: pfSense serves its webConfigurator
+  with a self-signed certificate unless you installed another one. Tick it
+  for your own firewall.
+- **Refresh interval**: 10 seconds to 1 minute (30 seconds by default).
+- **Gateways to follow**: the names of the gateways of **System** →
+  **Routing** (e.g. `WAN_DHCP`), up to four, separated by commas. Empty: every
+  gateway pfSense monitors, four at most.
+- **Departure delay (minutes)**: see the presence sensors.
+- **Firewall rules to follow** and **Allow commands**: see the firewall
+  rules.
+- **Language of the names**: the language of the device and feature names.
+
+Then press **Test the connection**: the report names the firewall, its
+version, the gateways and their state, the clients seen, the followed rules,
+and what the key may not read.
+
+## The devices
+
+Open the **Discover** tab of the integration and add what you want to follow.
+
+### The firewall
+
+One device for the firewall, named after its host name (or its platform when
+the host name is the default one). Its features:
+
+- **CPU usage**, **Memory used** and **Disk used**, in percent;
+- **Temperature**, when pfSense reads a sensor (most Netgate appliances; not
+  in a virtual machine);
+- **Uptime**, in hours;
+- **pfSense version** (e.g. `2.8.1-RELEASE`);
+- **Package update available**: 1 when an installed package has a newer
+  version (read hourly);
+- for each followed gateway: **Gateway WAN_DHCP online** (1 online, 0 down),
+  **Latency WAN_DHCP** in milliseconds and **Packet loss WAN_DHCP** in percent,
+  as measured by dpinger, the gateway monitor of pfSense;
+- for each WAN interface of these gateways: **Download WAN** and **Upload
+  WAN**, in Mbit/s, averaged over the refresh interval.
+
+### Presence sensors
+
+The Discover tab lists the devices of your network that pfSense sees (its
+ARP table and its DHCP leases), named after the description of their static
+mapping, else their host name. Each device you add becomes a presence sensor
+with one feature, **Presence**: 1 while pfSense sees it, 0 once it has not been
+seen for the **Departure delay (minutes)** (5 by default).
+
+pfSense keeps an entry in its ARP table up to 20 minutes after the last
+exchange with a device: a departure shows up to 20 minutes, plus the delay,
+after the device left. A phone asleep stays in the table as long as it keeps
+its Wi-Fi connection. When the firewall cannot be read, no presence changes:
+an outage never sends the household away.
+
+### Firewall rules
+
+To control a rule from Gladys, give it a description in pfSense (**Firewall**
+→ **Rules** → edit → **Description**), e.g. "Block kids tablet", and enter it
+in **Firewall rules to follow** (up to ten, separated by commas). **List the
+firewall rules** shows the rules that have a description.
+
+Each followed rule is a device with one feature, **Rule enabled**: 1 when the
+rule is enabled (when several rules share the description, 1 as soon as one
+is). It is read only on purpose: a rule is never a switch a voice assistant
+could flip. Enabling or disabling it goes through the scene actions and the
+widget, and only when **Allow commands** is ticked.
 
 ## Dashboard
 
-Add the **Demo status** widget to a dashboard: it shows the live
-temperature of the weather station and the power of the office plug, the
-connection the plug currently uses (orange when degraded) and the observed
-location. Its **Identify the light** button makes the demo light signal
-itself.
+Three widgets:
+
+- **pfSense firewall**: CPU, memory, temperature, the rates of the first WAN,
+  one row per gateway with its latency and loss (orange when degraded, red
+  when down), the uptime, the version and the packages to update. With
+  **Allow commands**, a **Reboot** button, with a confirmation.
+- **Devices at home**: the followed devices, present first, with how long
+  each one has been away. A setting shows the present ones only.
+- **Firewall rules**: the followed rules and their state. With **Allow
+  commands**, one button per rule (four at most), with a confirmation: the
+  icon shows the current state, a tap switches it.
+
+## Scenes
+
+### Triggers
+
+- **Gateway down**: pfSense marks a gateway down (no answer, or loss or
+  latency above its thresholds). Filter: the gateway name (empty: any).
+  Variables: the gateway, and the reason given by pfSense (`down`,
+  `highloss`, `highdelay`, `force_down`).
+- **Gateway restored**: a gateway that was down is online again. Variables:
+  the gateway and the length of the outage in minutes.
+- **Unknown device connected**: a MAC address never seen before got a
+  dynamic DHCP lease from pfSense. The first reading learns the network as it
+  is, without firing; the addresses seen are remembered across restarts.
+  Filter: the interface, as pfSense names it (e.g. `GUESTS`). Variables: the
+  MAC address, the IP address, the host name and the interface.
+
+### Actions
+
+These need **Allow commands**.
+
+- **Enable a firewall rule** and **Disable a firewall rule**: every rule with
+  the description of the chosen device, then the firewall applies the change.
+  Output: whether the rule is now enabled.
+- **Reboot the pfSense firewall**: the network and the internet are cut for a
+  few minutes.
+
+### Scene ideas
+
+- At 21:00 on school days, **Enable a firewall rule** "Block kids tablet"; at
+  7:00, disable it.
+- When **Gateway down** fires, send a message to your phone over the mobile
+  network (Telegram, Gladys Plus), and the length of the outage when **Gateway
+  restored** fires.
+- When **Unknown device connected** fires on the guest interface, notify the
+  household with the host name of the device.
+- When everybody's phone is away, turn the heating down.
+
+## How often the firewall is read
+
+Every refresh interval, the integration reads the system status, the gateway
+status, the interfaces, the DHCP leases, the ARP table and, when rules are
+followed, the rule list: six short HTTPS requests. The version, the host name
+and the gateway list are read every 10 minutes, the package list every hour
+(pfSense asks its package servers, with a cache). A refused key is tried
+again only every 5 minutes: the login protection of pfSense blocks an address
+after a few failures. Unchanged values are sent to Gladys again every 6 hours
+only, a present device every 2 minutes.
 
 ## Troubleshooting
 
-The integration logs everything it does: check the integration logs from the
-Gladys UI (or `docker logs` on the host) with `LOG_LEVEL=debug` for the full
-detail.
+- **"no REST API here"**: the package is not installed (or was removed by a
+  pfSense update), or the address is not the webConfigurator. Install the
+  package again.
+- **"certificate refused"**: tick **Accept a self-signed certificate**.
+- **"API key refused"**: the key was revoked or mistyped, or **API Key** is
+  not among the authentication methods of **System** → **REST API**. After a
+  few refusals, pfSense blocks the address of Gladys for a while (**System** →
+  **Advanced** → **Login Protection**).
+- **A measure is missing**: **Test the connection** lists the endpoints the
+  key may not read; add the privilege to the user.
+- **A rule command is refused**: the user needs the PATCH privilege of
+  `/api/v2/firewall/rule`; the reboot, the POST privilege of
+  `/api/v2/diagnostics/reboot`.
+- **A device stays present after it left**: pfSense keeps the ARP entry up to
+  20 minutes.
+- Logs: set the `LOG_LEVEL` of the integration to `debug` to see every
+  request. The API key is never written.
+
+## Limits
+
+- Developed without the hardware, against the documented answers of the REST
+  API package v2: the first users are the testers.
+- The REST API package is not an official pfSense package; it must be
+  installed again after each pfSense update. Its 32-bit builds (SG-3100) are
+  not supported by its author.
+- The base system update ("a new pfSense version is available") is not
+  readable through the REST API without starting the update: only the package
+  updates are shown.
+- The DHCP lease states are texts pfSense may translate: with a
+  webConfigurator in another language than English, the "Unknown device
+  connected" trigger may stay silent; the presence still works through the
+  ARP table.
+- One firewall per installation of the integration; no CARP pair, no VPN
+  tunnels, no traffic per client.
+- The commands change nothing but the enabled state of the rules you listed,
+  and reboot the firewall. Nothing else in pfSense is ever changed.
