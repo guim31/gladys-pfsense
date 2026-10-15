@@ -1,6 +1,6 @@
 {
   "name": "gladys-pfsense",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "pfSense integration for Gladys Assistant: presence, firewall health, gateways and outages, parental control.",
   "type": "module",

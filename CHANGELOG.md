@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-15
+
 ### Added
 
 - pfSense CE and Plus firewalls through the REST API v2 of the
@@ -35,4 +37,5 @@ the notes of the version's GitHub Release.
   screen.
 - Texts and documentation in English, French, German and Spanish.
 
-[Unreleased]: https://github.com/guim31/gladys-pfsense/commits/main
+[Unreleased]: https://github.com/guim31/gladys-pfsense/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/guim31/gladys-pfsense/releases/tag/v1.0.1

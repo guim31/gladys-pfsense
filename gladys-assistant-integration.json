@@ -8,8 +8,8 @@
     "de": "pfSense-Firewalls: Anwesenheit deiner Geräte, Zustand, Gateways und Ausfälle, Kindersicherung.",
     "es": "Cortafuegos pfSense: presencia de sus dispositivos, estado, puertas de enlace y cortes."
   },
-  "version": "1.0.0",
-  "docker_image": "ghcr.io/guim31/gladys-pfsense:1.0.0",
+  "version": "1.0.1",
+  "docker_image": "ghcr.io/guim31/gladys-pfsense:1.0.1",
   "gladys_version": ">=5.1.0",
   "cover_image": "https://raw.githubusercontent.com/guim31/gladys-pfsense/main/cover.png",
   "categories": ["network"],
