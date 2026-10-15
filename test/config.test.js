@@ -1,33 +1,61 @@
+// -----------------------------------------------------------------------------
+// Normalization of the configuration: the address in its usual forms, never
+// with credentials, the lists, the numbers typed as text.
+// -----------------------------------------------------------------------------
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeConfig, DEFAULT_CONFIG } from '../src/config.js';
+import { DEFAULT_CONFIG, displayUrl, normalizeConfig, parseUrl } from '../src/config.js';
 
-test('normalizeConfig returns the defaults when called with no argument', () => {
-  assert.deepEqual(normalizeConfig(), DEFAULT_CONFIG);
+test('addresses: HTTPS by default, a port, the path dropped, never credentials', () => {
+  assert.deepEqual(parseUrl('192.0.2.1'), { protocol: 'https:', host: '192.0.2.1', port: null });
+  assert.deepEqual(parseUrl('https://fw.home.arpa:8443/index.php'), {
+    protocol: 'https:',
+    host: 'fw.home.arpa',
+    port: 8443,
+  });
+  assert.deepEqual(parseUrl(' http://192.0.2.1 '), {
+    protocol: 'http:',
+    host: '192.0.2.1',
+    port: null,
+  });
+  assert.deepEqual(parseUrl('[2001:db8::1]:444'), {
+    protocol: 'https:',
+    host: '2001:db8::1',
+    port: 444,
+  });
+  assert.equal(parseUrl('https://admin:pfsense@192.0.2.1'), null);
+  assert.equal(parseUrl('ftp://192.0.2.1'), null);
+  assert.equal(parseUrl(''), null);
+  assert.equal(displayUrl(parseUrl('[2001:db8::1]:444')), 'https://[2001:db8::1]:444');
 });
 
-test('normalizeConfig keeps user values over the defaults', () => {
-  const config = normalizeConfig({ latitude: 45.5, longitude: -73.6, unit: 'fahrenheit' });
-  assert.equal(config.latitude, 45.5);
-  assert.equal(config.longitude, -73.6);
-  assert.equal(config.unit, 'fahrenheit');
-});
-
-test('normalizeConfig coerces numeric strings coming from a form', () => {
-  const config = normalizeConfig({ latitude: '48.8', longitude: '2.3', poll_frequency: '600' });
-  assert.equal(config.latitude, 48.8);
-  assert.equal(config.longitude, 2.3);
-  assert.equal(config.poll_frequency, 600);
-  assert.equal(typeof config.poll_frequency, 'number');
-});
-
-test('normalizeConfig falls back to the default for a missing numeric field', () => {
-  const config = normalizeConfig({ unit: 'celsius' });
-  assert.equal(config.poll_frequency, DEFAULT_CONFIG.poll_frequency);
-});
-
-test('GLADYS_PREFER_LOCAL defaults to true and only an explicit false disables it', () => {
-  assert.equal(normalizeConfig().GLADYS_PREFER_LOCAL, true);
-  assert.equal(normalizeConfig({ GLADYS_PREFER_LOCAL: true }).GLADYS_PREFER_LOCAL, true);
-  assert.equal(normalizeConfig({ GLADYS_PREFER_LOCAL: false }).GLADYS_PREFER_LOCAL, false);
+test('defaults, lists and numbers', () => {
+  const config = normalizeConfig({});
+  assert.equal(config.target, null);
+  assert.equal(config.invalidUrl, false);
+  assert.equal(config.pollIntervalMs, 30_000);
+  assert.equal(config.awayDelayMs, DEFAULT_CONFIG.away_delay * 60_000);
+  assert.equal(config.allowCommands, false);
+  assert.equal(config.language, 'fr');
+  const custom = normalizeConfig({
+    url: 'nope://',
+    api_key: '  abc  ',
+    poll_interval: 15,
+    away_delay: '2,6',
+    gateways: 'A, B; A, C, D, E',
+    firewall_rules: 'One, , Two',
+    allow_commands: 'true',
+    language: 'it',
+  });
+  assert.equal(custom.invalidUrl, true);
+  assert.equal(custom.apiKey, 'abc');
+  assert.equal(custom.pollIntervalMs, 15_000);
+  assert.equal(custom.awayDelayMs, 3 * 60_000);
+  assert.deepEqual(custom.gateways, ['A', 'B', 'C', 'D']);
+  assert.deepEqual(custom.rules, ['One', 'Two']);
+  assert.equal(custom.allowCommands, true);
+  assert.equal(custom.language, 'fr');
+  assert.equal(normalizeConfig({ away_delay: 500 }).awayDelayMs, 60 * 60_000);
+  assert.equal(normalizeConfig({ poll_interval: '5' }).pollIntervalMs, 30_000);
 });

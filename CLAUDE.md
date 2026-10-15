@@ -31,16 +31,24 @@ pushing.
 ## Architecture
 
 ```
-index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
+index.js                          SDK wiring only (src/app.js does the registering)
+src/app.js                        registers every handler on a GladysIntegration or the fake Gladys
+src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
+src/hub.js                        the reading timer, states, scene events, commands, reports
+src/devices.js                    firewall, client (presence) and rule devices: ids, features, names
+src/presence.js                   clients of a reading (ARP, DHCP leases), departure delay
+src/pfsense/client.js             REST API v2 client (X-API-Key, envelope, endpoints)
+src/pfsense/http.js               the HTTP(S) request of the client (test seam)
+src/pfsense/model.js              readers of the REST API answers
+src/pfsense/errors.js             error kinds (unreachable, tls, no_api, auth, permission…)
 src/scenes.js                     scene action handlers (manifest `scene_actions`)
 src/widgets.js                    dashboard widget handlers (manifest `widgets`)
-src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
+src/texts.js                      the four-language messages of the code
+src/store.js                      /data/pfsense-state.json (MACs already seen)
+scripts/probe.mjs                 read-only probe of a real firewall (run outside the session)
 gladys-assistant-integration.json manifest: name, config_schema, actions, image...
-docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
-test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+docs/{en,fr,de,es}.md             user documentation, re-hosted by Gladys, same sections
+test/                             node --test, SDK fake Gladys + test/helpers/fakePfsense.js
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
 
@@ -70,8 +78,10 @@ test/                             node --test, against the SDK's fake Gladys (in
   `type: "provider"`: 5.1.0). `test/manifest.test.js` ties the manifest to the
   code (defaults, action, scene and widget handlers): change both sides
   together.
-- **User-facing text** is bilingual (English and French): action messages,
-  manifest texts, and `docs/en.md` / `docs/fr.md`, kept in sync.
+- **User-facing text** is in four languages (English, French, German with
+  "du", Spanish with "usted"): action messages, manifest texts, widget texts,
+  feature names and `docs/{en,fr,de,es}.md`, kept in sync. `test/i18n.test.js`
+  checks it.
 - **Style.** Prettier formats, ESLint catches mistakes. Comments explain why,
   in English. Tests never touch the network.
 
@@ -233,3 +243,42 @@ long, et sur un « Sie »/« Ihr… » de politesse en allemand. Le store exige 
 - Docs `en`, `fr`, `de`, `es` avec les mêmes sections.
 - Chauffe, ouverture, sécurité : ne rien rendre pilotable « comme un thermostat » ou par un assistant
   vocal quand une erreur serait dangereuse (leçon d'OctoPrint).
+
+## Intégration pfSense (15/10/2026)
+
+Développée **sans pare-feu** : fixtures écrites d'après les modèles du paquet `pfSense-pkg-RESTAPI`
+(Apache-2.0) et les chaînes que pfSense écrit lui-même (`src/etc/inc/gwlb.inc`, `system.inc`, Apache-2.0),
+anonymisées (RFC 5737, RFC 3849, RFC 7042). Le test réel passe par `scripts/probe.mjs` (lecture seule,
+rapport sans clé, adresse, MAC, numéro de série ni description), lancé ailleurs.
+
+- **API REST v2 du paquet `pfSense-pkg-RESTAPI`, pas XML-RPC** : hass-pfsense lit par XML-RPC et
+  `exec_php`, qui exige un compte capable d'exécuter du PHP en root. Une clé d'API (`X-API-Key`) hérite
+  des privilèges de l'utilisateur qui l'a créée, un privilège par point d'accès et par méthode
+  (`api-v2-status-system-get`…). Le paquet n'est pas officiel : **pfSense le supprime à chaque mise à
+  jour du système**, il faut le réinstaller (à rappeler dans la doc et le dépannage).
+- **Enveloppe** `{ code, status, response_id, message, data }` ; refus : 401 `AUTH_AUTHENTICATION_FAILED`,
+  403 `AUTH_AUTHORIZATION_FAILED`. Un point d'accès absent (paquet manquant ou trop ancien) est un **404
+  HTML de nginx**, pas du JSON : 404 sur `/status/system` = pas d'API (`no_api`). Un privilège manquant
+  ou un 404 sur un autre point d'accès est sauté et listé par « Tester la connexion », jamais une panne.
+- **Protection de connexion** : chaque clé refusée compte comme un échec de connexion ; pfSense bloque
+  l'adresse de Gladys après quelques-uns. Une clé refusée n'est réessayée que toutes les 5 minutes (testé).
+- **Identité du pare-feu** : `netgate_id` de `/status/system` (présent partout, propre à l'installation),
+  sinon `serial` (vide sur une VM), sinon la MAC de la première interface. Jamais l'adresse saisie.
+- **Passerelles** (dpinger) : `status` vaut `online` ou `down`, `substatus` dit pourquoi (`none`, `loss`,
+  `delay`, `highloss`, `highdelay`, `down`, `force_down`) ; monitoring désactivé = `online` sans latence.
+  L'interface d'une passerelle vient de `/routing/gateways`, sinon de son `srcip` comparé aux adresses de
+  `/status/interfaces`. Débits : croissance de `inbytes`/`outbytes` entre deux lectures.
+- **Baux DHCP** : `active_status` `active`/`expired`/`reserved`/`static`, `online_status`
+  `active/online`/`idle/offline` (en ligne = MAC dans l'ARP). **Ce sont des gettext()** : traduits si le
+  webConfigurator n'est pas en anglais (limite documentée ; la présence tient par l'ARP).
+- **ARP** : FreeBSD garde une entrée jusqu'à 20 minutes (`net.link.ether.inet.max_age`) : un départ est vu
+  jusqu'à 20 min + délai plus tard. Entrées `permanent` = adresses du pare-feu, ignorées, comme l'ARP des
+  interfaces WAN.
+- **Mise à jour du système** : aucune lecture possible par l'API REST (`POST /system/update` _lance_ la
+  mise à jour : ne jamais l'appeler). Seules les mises à jour de paquets (`/system/packages`,
+  `update_available`, lu toutes les heures) sont publiées.
+- **Règles** : suivies par leur **description** exacte (`descr`). L'`id` d'une règle est sa **position**
+  dans la liste (il bouge) : relire la liste juste avant chaque `PATCH /firewall/rule { id, disabled }`,
+  `apply: true` sur le dernier seulement. Règles en `input/binary` lecture seule, jamais un interrupteur.
+- **Reboot** : `POST /diagnostics/reboot` ; une connexion coupée avant la réponse compte comme réussie.
+- `gladys-opnsense` (autre auteur) n'a pas été trouvée en clone public le 15/10/2026 : pas relue.

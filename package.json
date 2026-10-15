@@ -1,8 +1,8 @@
 {
-  "name": "gladys-integration-template-js",
+  "name": "gladys-pfsense",
   "version": "1.0.0",
   "private": true,
-  "description": "Official starter template to build an external integration for Gladys Assistant with the JavaScript SDK.",
+  "description": "pfSense integration for Gladys Assistant: presence, firewall health, gateways and outages, parental control.",
   "type": "module",
   "main": "index.js",
   "scripts": {
